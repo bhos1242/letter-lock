@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org-context";
 import DashboardLayoutClient from "./layout-client";
 
 export default async function DashboardLayout({
@@ -9,20 +10,32 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  // Redirect to login if not authenticated
   if (!session?.user) {
     redirect("/auth/login");
   }
 
-  // Redirect to verify OTP if email not verified
-  // Skip verification check for OAuth users (Google, GitHub, etc.)
-  const isOAuthUser =
-    session.user.provider && session.user.provider !== "credentials";
+  const isOAuthUser = session.user.provider && session.user.provider !== "credentials";
   if (!session.user.isVerified && !isOAuthUser) {
-    redirect(
-      "/auth/verify-otp?email=" + encodeURIComponent(session.user.email)
-    );
+    redirect("/auth/verify-otp?email=" + encodeURIComponent(session.user.email));
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  const orgCtx = await getOrgContext();
+
+  if (!orgCtx) {
+    redirect("/onboarding");
+  }
+
+  return (
+    <DashboardLayoutClient
+      orgContext={{
+        orgId: orgCtx.orgId,
+        orgName: orgCtx.orgName,
+        orgSlug: orgCtx.orgSlug,
+        role: orgCtx.role,
+        memberships: orgCtx.memberships,
+      }}
+    >
+      {children}
+    </DashboardLayoutClient>
+  );
 }

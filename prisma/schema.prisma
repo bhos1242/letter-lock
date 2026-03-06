@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -11,6 +8,60 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  HR
+  APPROVER
+  VIEWER
+}
+
+enum AssetKind {
+  LOGO
+  LETTERHEAD
+  STAMP
+  SIGNATURE
+  DOCUMENT_PDF
+}
+
+enum TemplateType {
+  OFFER_LETTER
+  INTERNSHIP_LETTER
+  EXPERIENCE_LETTER
+  RECOMMENDATION_LETTER
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  REVOKED
+  SUPERSEDED
+}
+
+enum VerificationMethod {
+  QR_CODE
+  DIRECT_LINK
+  MANUAL_CODE
+  HASH_CHECK
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 // ============================================
@@ -23,12 +74,17 @@ model User {
   email             String?            @unique
   emailVerified     DateTime?
   image             String?
-  password          String? // Nullable for OAuth users
+  password          String?
   role              String             @default("USER")
   isVerified        Boolean            @default(false)
   accounts          Account[]
   sessions          Session[]
   pushSubscriptions PushSubscription[]
+  memberships       Membership[]
+  createdDocuments  Document[]         @relation("DocumentCreator")
+  approvedDocuments Document[]         @relation("DocumentApprover")
+  auditLogs         AuditLog[]
+  createdTemplates  Template[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -69,7 +125,7 @@ model VerificationToken {
 }
 
 // ============================================
-// YOUR APP MODELS (Add your models below)
+// AUTH HELPERS
 // ============================================
 
 model OTP {
@@ -97,8 +153,8 @@ model PasswordResetToken {
 
 model RateLimit {
   id         String   @id @default(cuid())
-  identifier String // email or IP
-  action     String // "resend-otp" or "forgot-password"
+  identifier String
+  action     String
   count      Int      @default(1)
   resetAt    DateTime
   createdAt  DateTime @default(now())
@@ -123,14 +179,267 @@ model PushSubscription {
   @@index([userId])
 }
 
-// Example:
-// model Post {
-//   id        String   @id @default(cuid())
-//   title     String
-//   content   String?
-//   published Boolean  @default(false)
-//   authorId  String
-//   author    User     @relation(fields: [authorId], references: [id])
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+// ============================================
+// MULTI-TENANT ORGANIZATION MODELS
+// ============================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships        Membership[]
+  branding           OrganizationBranding?
+  emailConfig        OrganizationEmailConfig?
+  fileAssets         FileAsset[]
+  templates          Template[]
+  documents          Document[]
+  auditLogs          AuditLog[]
+  emailLogs          EmailLog[]
+  verificationEvents VerificationEvent[]
+
+  @@index([slug])
+}
+
+model Membership {
+  id             String     @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MemberRole @default(VIEWER)
+  createdAt      DateTime   @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model OrganizationBranding {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  logoUrl           String?
+  letterheadUrl     String?
+  stampUrl          String?
+  signatureUrl      String?
+  logoAssetId       String?
+  letterheadAssetId String?
+  stampAssetId      String?
+  signatureAssetId  String?
+  primaryColor      String   @default("#2563eb")
+  supportEmail      String?
+  website           String?
+  address           String?  @db.Text
+  updatedAt         DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model OrganizationEmailConfig {
+  id                    String   @id @default(cuid())
+  organizationId        String   @unique
+  smtpHost              String
+  smtpPort              Int      @default(587)
+  smtpUsername          String
+  smtpPasswordEncrypted String   @db.Text
+  smtpFromName          String
+  smtpFromEmail         String
+  useTls                Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// FILE ASSETS
+// ============================================
+
+model FileAsset {
+  id             String    @id @default(cuid())
+  organizationId String
+  kind           AssetKind
+  fileName       String
+  mimeType       String
+  storageKey     String
+  sizeBytes      Int
+  checksum       String?
+  uploadedById   String
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, kind])
+}
+
+// ============================================
+// TEMPLATES
+// ============================================
+
+model Template {
+  id               String         @id @default(cuid())
+  organizationId   String
+  name             String
+  type             TemplateType
+  status           TemplateStatus @default(DRAFT)
+  requiresApproval Boolean        @default(false)
+  currentVersionId String?        @unique
+  createdById      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  currentVersion TemplateVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions       TemplateVersion[] @relation("TemplateVersions")
+  documents      Document[]
+
+  @@index([organizationId])
+  @@index([organizationId, type])
+}
+
+model TemplateVersion {
+  id                 String   @id @default(cuid())
+  templateId         String
+  organizationId     String
+  versionNumber      Int
+  content            String   @db.Text
+  variableSchemaJson String   @db.Text
+  createdById        String
+  createdAt          DateTime @default(now())
+
+  template   Template   @relation("TemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
+  currentFor Template?  @relation("CurrentVersion")
+  documents  Document[]
+
+  @@unique([templateId, versionNumber])
+  @@index([templateId])
+}
+
+// ============================================
+// DOCUMENTS
+// ============================================
+
+model Document {
+  id                String         @id @default(cuid())
+  organizationId    String
+  templateId        String?
+  templateVersionId String?
+  type              TemplateType
+  status            DocumentStatus @default(DRAFT)
+  humanReadableId   String         @unique
+  uvid              String         @unique
+  verificationCode  String
+  payloadJson       String         @db.Text
+  pdfStorageKey     String?
+  pdfHashSha256     String?
+  recipientName     String
+  recipientEmail    String?
+  roleTitle         String?
+  issuedAt          DateTime?
+  revokedAt         DateTime?
+  revocationReason  String?        @db.Text
+  supersededById    String?
+  createdById       String
+  approvedById      String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template           Template?           @relation(fields: [templateId], references: [id])
+  templateVersion    TemplateVersion?    @relation(fields: [templateVersionId], references: [id])
+  createdBy          User                @relation("DocumentCreator", fields: [createdById], references: [id])
+  approvedBy         User?               @relation("DocumentApprover", fields: [approvedById], references: [id])
+  supersededBy       Document?           @relation("Superseded", fields: [supersededById], references: [id])
+  supersedes         Document[]          @relation("Superseded")
+  recipients         DocumentRecipient[]
+  verificationEvents VerificationEvent[]
+  emailLogs          EmailLog[]
+
+  @@index([organizationId])
+  @@index([uvid])
+  @@index([humanReadableId])
+  @@index([organizationId, status])
+}
+
+model DocumentRecipient {
+  id             String  @id @default(cuid())
+  documentId     String
+  organizationId String
+  fullName       String
+  email          String?
+  phone          String?
+  metaJson       String? @db.Text
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+// ============================================
+// VERIFICATION
+// ============================================
+
+model VerificationEvent {
+  id             String             @id @default(cuid())
+  documentId     String
+  organizationId String
+  method         VerificationMethod
+  ipHash         String?
+  userAgent      String?
+  createdAt      DateTime           @default(now())
+
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([organizationId])
+}
+
+// ============================================
+// AUDIT LOGS
+// ============================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  action         String
+  targetType     String?
+  targetId       String?
+  metaJson       String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, action])
+  @@index([createdAt])
+}
+
+// ============================================
+// EMAIL LOGS
+// ============================================
+
+model EmailLog {
+  id                String      @id @default(cuid())
+  organizationId    String
+  documentId        String?
+  recipientEmail    String
+  subject           String
+  status            EmailStatus @default(PENDING)
+  providerMessageId String?
+  errorMessage      String?     @db.Text
+  sentAt            DateTime?
+  createdAt         DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document?    @relation(fields: [documentId], references: [id])
+
+  @@index([organizationId])
+  @@index([documentId])
+}

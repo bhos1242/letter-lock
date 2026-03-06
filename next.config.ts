@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Prevent @react-pdf/renderer and qrcode from being bundled for the client
+  serverExternalPackages: ["@react-pdf/renderer", "canvas", "qrcode"],
+
   async headers() {
     return [
       {
