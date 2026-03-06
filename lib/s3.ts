@@ -43,8 +43,8 @@ export async function uploadToS3(
     await s3Client.send(command);
 
     // Return public URL (assuming bucket has public read access)
-    const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${uniqueFilename}`;
-    
+    const publicUrl = `/api/assets/${uniqueFilename}`;
+
     return publicUrl;
   } catch (error) {
     console.error("Error uploading to S3:", error);
@@ -60,7 +60,7 @@ export async function uploadToS3(
 export async function uploadAvatar(formData: FormData): Promise<string | null> {
   try {
     const avatar = formData.get("avatar") as File | null;
-    
+
     if (!avatar || avatar.size === 0) {
       return null;
     }

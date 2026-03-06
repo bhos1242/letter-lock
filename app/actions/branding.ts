@@ -16,11 +16,21 @@ const brandingSchema = z.object({
   supportEmail: z.string().email().optional().or(z.literal("")),
   website: z.string().url().optional().or(z.literal("")),
   address: z.string().max(500).optional().or(z.literal("")),
-  logoUrl: z.string().url().optional().or(z.literal("")),
-  letterheadUrl: z.string().url().optional().or(z.literal("")),
-  stampUrl: z.string().url().optional().or(z.literal("")),
-  signatureUrl: z.string().url().optional().or(z.literal("")),
+  logoUrl: z.string().optional().or(z.literal("")),
+  letterheadUrl: z.string().optional().or(z.literal("")),
+  stampUrl: z.string().optional().or(z.literal("")),
+  signatureUrl: z.string().optional().or(z.literal("")),
 });
+
+function normalizeBrandingUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // If it's already a relative path, return it
+  if (url.startsWith("/")) return url;
+  // If it's a full Amazon S3 URL, extract the storage key and convert to proxy path
+  const match = url.match(/amazonaws\.com\/(.+)$/);
+  if (match) return `/api/assets/${match[1]}`;
+  return url;
+}
 
 export async function updateBranding(formData: FormData) {
   const ctx = await requireOrgContext();
@@ -84,7 +94,17 @@ export async function updateBranding(formData: FormData) {
 export async function getBranding() {
   const ctx = await requireOrgContext();
 
-  return prisma_db.organizationBranding.findUnique({
+  const branding = await prisma_db.organizationBranding.findUnique({
     where: { organizationId: ctx.orgId },
   });
+
+  if (!branding) return null;
+
+  return {
+    ...branding,
+    logoUrl: normalizeBrandingUrl(branding.logoUrl),
+    letterheadUrl: normalizeBrandingUrl(branding.letterheadUrl),
+    stampUrl: normalizeBrandingUrl(branding.stampUrl),
+    signatureUrl: normalizeBrandingUrl(branding.signatureUrl),
+  };
 }

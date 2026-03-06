@@ -48,7 +48,7 @@ export async function uploadOrgAsset(
     })
   );
 
-  const url = `https://${BUCKET}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${storageKey}`;
+  const url = `/api/assets/${storageKey}`;
 
   return { storageKey, url, checksum };
 }
@@ -91,7 +91,7 @@ export async function getPresignedDownloadUrl(storageKey: string): Promise<strin
  * Only use this if the bucket/object is publicly accessible.
  */
 export function getPublicUrl(storageKey: string): string {
-  return `https://${BUCKET}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com/${storageKey}`;
+  return `/api/assets/${storageKey}`;
 }
 
 /**
