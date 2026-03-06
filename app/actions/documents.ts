@@ -17,11 +17,11 @@ import {
 } from "@/lib/document-id";
 import { generateQRCode } from "@/lib/qr";
 import { generateLetterPDF } from "@/lib/pdf";
-import { uploadDocumentPDF, getPresignedDownloadUrl } from "@/lib/storage";
+import { uploadDocumentPDF, getPresignedDownloadUrl, downloadAsBuffer } from "@/lib/storage";
 import { sendLetterEmail } from "@/lib/org-email";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { TemplateType } from "@/lib/generated/prisma";
+import { TemplateType } from "@/lib/generated/prisma/client";
 
 const issueDocumentSchema = z.object({
   templateId: z.string().min(1),
@@ -376,6 +376,9 @@ export async function resendDocumentEmail(documentId: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:2222";
   const verifyUrl = `${appUrl}/verify/${doc.uvid}`;
 
+  // Download the PDF buffer from S3 to attach it
+  const pdfBuffer = await downloadAsBuffer(doc.pdfStorageKey);
+
   await sendLetterEmail({
     orgId: ctx.orgId,
     documentId: doc.id,
@@ -384,6 +387,7 @@ export async function resendDocumentEmail(documentId: string) {
     documentType: doc.type,
     humanReadableId: doc.humanReadableId,
     uvid: doc.uvid,
+    pdfBuffer,
     verifyUrl,
     orgName: ctx.orgName,
   });
@@ -406,7 +410,7 @@ export async function getDocuments(status?: string) {
   return prisma_db.document.findMany({
     where: {
       organizationId: ctx.orgId,
-      ...(status ? { status: status as import("@/lib/generated/prisma").DocumentStatus } : {}),
+      ...(status ? { status: status as import("@/lib/generated/prisma/client").DocumentStatus } : {}),
     },
     include: {
       createdBy: { select: { name: true, email: true } },

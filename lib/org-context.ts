@@ -1,7 +1,7 @@
 import { auth } from "./auth";
 import { cookies } from "next/headers";
 import { prisma_db } from "./prisma";
-import { MemberRole } from "./generated/prisma";
+import { MemberRole } from "./generated/prisma/client";
 
 export interface OrgContext {
   userId: string;

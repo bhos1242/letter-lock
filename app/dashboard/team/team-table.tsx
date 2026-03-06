@@ -25,7 +25,7 @@ import {
 import { MoreHorizontal, UserMinus } from "lucide-react";
 import { changeMemberRole, removeMember } from "@/app/actions/org";
 import { useOrg } from "@/components/org-provider";
-import { MemberRole } from "@/lib/generated/prisma";
+import { MemberRole } from "@/lib/generated/prisma/client";
 
 type Member = {
   id: string;

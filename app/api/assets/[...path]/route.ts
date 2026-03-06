@@ -13,7 +13,7 @@ const BUCKET = process.env.S3_BUCKET_NAME || "";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
     try {
         const storageKey = (await params).path.join("/");

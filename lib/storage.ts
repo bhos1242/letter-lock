@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
-import { AssetKind } from "./generated/prisma";
+import { AssetKind } from "./generated/prisma/client";
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -99,6 +99,22 @@ export function getPublicUrl(storageKey: string): string {
  */
 export async function deleteStorageObject(storageKey: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: storageKey }));
+}
+
+/**
+ * Downloads an object from S3 as a Buffer.
+ */
+export async function downloadAsBuffer(storageKey: string): Promise<Buffer> {
+  const command = new GetObjectCommand({ Bucket: BUCKET, Key: storageKey });
+  const response = await s3.send(command);
+
+  if (!response.Body) {
+    throw new Error(`S3 Object not found or empty: ${storageKey}`);
+  }
+
+  // Convert S3 Body (Readable) to Buffer
+  const bytes = await response.Body.transformToByteArray();
+  return Buffer.from(bytes);
 }
 
 /**

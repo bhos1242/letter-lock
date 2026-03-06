@@ -3,7 +3,7 @@ import { requireOrgContext } from "@/lib/org-context";
 import { canManageBranding } from "@/lib/permissions";
 import { uploadOrgAsset } from "@/lib/storage";
 import { prisma_db } from "@/lib/prisma";
-import { AssetKind } from "@/lib/generated/prisma";
+import { AssetKind } from "@/lib/generated/prisma/client";
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",

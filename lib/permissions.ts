@@ -1,4 +1,4 @@
-import { MemberRole } from "./generated/prisma";
+import { MemberRole } from "./generated/prisma/client";
 
 export function canManageOrg(role: MemberRole): boolean {
   return role === "OWNER" || role === "ADMIN";

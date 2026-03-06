@@ -8,7 +8,7 @@ import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import { canManageOrg, canManageTeam, requireRole } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { MemberRole } from "@/lib/generated/prisma";
+import { MemberRole } from "@/lib/generated/prisma/client";
 
 const createOrgSchema = z.object({
   name: z.string().min(2).max(100),

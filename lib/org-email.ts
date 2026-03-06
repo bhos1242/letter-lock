@@ -70,28 +70,52 @@ export async function sendLetterEmail(opts: SendLetterEmailOptions): Promise<voi
     where: { organizationId: opts.orgId },
   });
 
-  if (!config) {
-    throw new Error("No SMTP configuration found for this organization. Please configure SMTP in settings.");
+  const smtpConfig = config ? (() => {
+    const smtpPassword = decryptSecret(config.smtpPasswordEncrypted);
+    return {
+      host: config.smtpHost,
+      port: config.smtpPort,
+      secure: config.useTls && config.smtpPort === 465,
+      requireTLS: config.useTls && config.smtpPort !== 465,
+      auth: {
+        user: config.smtpUsername,
+        pass: smtpPassword,
+      },
+      fromName: config.smtpFromName,
+      fromEmail: config.smtpFromEmail,
+    };
+  })() : {
+    host: process.env.SMTP_HOST || "",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: process.env.SMTP_PORT === "465",
+    requireTLS: process.env.SMTP_PORT !== "465",
+    auth: {
+      user: process.env.SMTP_USER || "",
+      pass: process.env.SMTP_PASSWORD || "",
+    },
+    fromName: process.env.SMTP_FROM_NAME || "Letter Lock",
+    fromEmail: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "",
+  };
+
+  if (!smtpConfig.host || !smtpConfig.auth.user || !smtpConfig.auth.pass) {
+    throw new Error("SMTP configuration not found. Please configure SMTP in dashboard or environment variables.");
   }
 
-  const smtpPassword = decryptSecret(config.smtpPasswordEncrypted);
-
   const transporter = nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort,
-    secure: config.useTls && config.smtpPort === 465,
-    requireTLS: config.useTls && config.smtpPort !== 465,
-    auth: {
-      user: config.smtpUsername,
-      pass: smtpPassword,
-    },
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    requireTLS: smtpConfig.requireTLS,
+    auth: smtpConfig.auth,
   });
+
+  const fromAddress = `"${smtpConfig.fromName}" <${smtpConfig.fromEmail}>`;
 
   const docTypeLabel = getDocumentTypeLabel(opts.documentType);
   const subject = `${docTypeLabel} from ${opts.orgName} — Ref: ${opts.humanReadableId}`;
 
   const mailOptions: nodemailer.SendMailOptions = {
-    from: `"${config.smtpFromName}" <${config.smtpFromEmail}>`,
+    from: fromAddress,
     to: opts.recipientEmail,
     subject,
     html: buildLetterEmailHtml({

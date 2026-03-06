@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { MemberRole } from "@/lib/generated/prisma";
+import { MemberRole } from "@/lib/generated/prisma/client";
 
 export interface OrgContextValue {
   orgId: string;

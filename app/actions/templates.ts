@@ -7,7 +7,7 @@ import { canManageTemplates, requireRole } from "@/lib/permissions";
 import { extractVariables } from "@/lib/template-engine";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { TemplateType } from "@/lib/generated/prisma";
+import { TemplateType } from "@/lib/generated/prisma/client";
 
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(200),
@@ -205,7 +205,7 @@ export async function getTemplates(status?: string) {
   return prisma_db.template.findMany({
     where: {
       organizationId: ctx.orgId,
-      ...(status ? { status: status as import("@/lib/generated/prisma").TemplateStatus } : {}),
+      ...(status ? { status: status as import("@/lib/generated/prisma/client").TemplateStatus } : {}),
     },
     include: {
       currentVersion: { select: { versionNumber: true, variableSchemaJson: true } },

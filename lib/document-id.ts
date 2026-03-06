@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { TemplateType } from "./generated/prisma";
+import { TemplateType } from "./generated/prisma/client";
 
 const TYPE_PREFIX: Record<TemplateType, string> = {
   OFFER_LETTER: "OL",
