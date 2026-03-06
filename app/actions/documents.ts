@@ -70,7 +70,9 @@ export async function issueDocument(formData: FormData) {
   }
 
   const requiredVars: string[] = JSON.parse(template.currentVersion.variableSchemaJson);
-  const missing = validateVariables(requiredVars, variables);
+  const autoFilledVars = ["company_name", "company_address", "company_website", "recipient_email", "issue_date"];
+  const missing = validateVariables(requiredVars.filter(v => !autoFilledVars.includes(v)), variables);
+
   if (missing.length > 0) {
     return { error: `Missing required fields: ${missing.join(", ")}` };
   }
@@ -137,10 +139,26 @@ async function _finalizeAndIssueDocument(opts: {
 }) {
   const { ctx, template, variables, recipientName, recipientEmail, roleTitle, sendEmail } = opts;
 
+  // Load org branding for PDF and template rendering
+  const branding = await prisma_db.organizationBranding.findUnique({
+    where: { organizationId: ctx.orgId },
+  });
+
   // Render template content
   const renderedContent = renderTemplate(
     template.currentVersion!.content,
-    { ...variables, company_name: ctx.orgName } as Record<string, string>,
+    {
+      ...variables,
+      company_name: ctx.orgName,
+      company_address: branding?.address ?? "",
+      company_website: branding?.website ?? "",
+      recipient_email: recipientEmail ?? "",
+      issue_date: new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+    } as Record<string, string>,
     { strict: false, sanitize: false }
   );
 
@@ -156,10 +174,7 @@ async function _finalizeAndIssueDocument(opts: {
   const newUvid = uvid ?? generateUVID();
   const verifyUrl = `${appUrl}/verify/${newUvid}`;
 
-  // Load org branding for PDF
-  const branding = await prisma_db.organizationBranding.findUnique({
-    where: { organizationId: ctx.orgId },
-  });
+  // Build verify URL
 
   // Generate QR code
   const qrDataUrl = await generateQRCode(verifyUrl);

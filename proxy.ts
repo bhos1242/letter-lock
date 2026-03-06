@@ -1,7 +1,11 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
+import { NextRequest, NextResponse } from "next/server";
 
-export default auth((req) => {
+// We use a separate NextAuth instance for Proxy to avoid importing Prisma
+const { auth } = NextAuth(authConfig);
+
+export const proxy = auth((req) => {
   const { nextUrl, auth: session } = req;
 
   const isDashboard = nextUrl.pathname.startsWith("/dashboard");
@@ -16,6 +20,8 @@ export default auth((req) => {
 
   return NextResponse.next();
 });
+
+export default proxy;
 
 export const config = {
   matcher: [

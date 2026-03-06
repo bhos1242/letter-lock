@@ -97,6 +97,7 @@ export function TemplateForm({ templateId, defaultValues }: TemplateFormProps) {
       }),
     ],
     content: defaultValues?.content ?? "",
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       setDetectedVars(extractVariables(html));
