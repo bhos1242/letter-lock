@@ -219,7 +219,14 @@ function LetterDocument({ data }: { data: LetterPDFData }) {
 
         {/* Body */}
         <View style={styles.body}>
-          <Text style={styles.docTitle}>{docLabel}</Text>
+          <Text
+            style={[
+              styles.docTitle,
+              data.primaryColor ? { color: data.primaryColor } : {},
+            ]}
+          >
+            {docLabel}
+          </Text>
           <Text style={styles.dateRow}>Date: {issuedDate}</Text>
 
           {/* Letter paragraphs */}
@@ -256,7 +263,14 @@ function LetterDocument({ data }: { data: LetterPDFData }) {
             <Text style={styles.footerValue}>{data.uvid}</Text>
             <Text style={styles.footerLabel}>Verification Code</Text>
             <Text style={styles.footerValue}>{data.verificationCode}</Text>
-            <Text style={styles.footerVerify}>{data.verifyUrl}</Text>
+            <Text
+              style={[
+                styles.footerVerify,
+                data.primaryColor ? { color: data.primaryColor } : {},
+              ]}
+            >
+              {data.verifyUrl}
+            </Text>
           </View>
           <Image src={data.qrCodeDataUrl} style={styles.qrCode} />
         </View>

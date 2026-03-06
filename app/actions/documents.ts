@@ -179,15 +179,27 @@ async function _finalizeAndIssueDocument(opts: {
   // Generate QR code
   const qrDataUrl = await generateQRCode(verifyUrl);
 
+  const resolveUrl = async (url?: string | null) => {
+    if (!url) return undefined;
+    if (url.startsWith("/api/assets/")) {
+      const storageKey = url.replace("/api/assets/", "");
+      return await getPresignedDownloadUrl(storageKey);
+    }
+    if (url.startsWith("/")) {
+      return `${appUrl}${url}`;
+    }
+    return url;
+  };
+
   // Generate PDF
   const { buffer: pdfBuffer, hashSha256 } = await generateLetterPDF({
     organizationName: ctx.orgName,
     organizationAddress: branding?.address ?? undefined,
     primaryColor: branding?.primaryColor,
-    logoUrl: branding?.logoUrl ?? undefined,
-    letterheadUrl: branding?.letterheadUrl ?? undefined,
-    signatureUrl: branding?.signatureUrl ?? undefined,
-    stampUrl: branding?.stampUrl ?? undefined,
+    logoUrl: await resolveUrl(branding?.logoUrl),
+    letterheadUrl: await resolveUrl(branding?.letterheadUrl),
+    signatureUrl: await resolveUrl(branding?.signatureUrl),
+    stampUrl: await resolveUrl(branding?.stampUrl),
     documentType: template.type,
     humanReadableId: humanReadableId ?? opts.existingDocId ?? "DRAFT",
     uvid: newUvid,
