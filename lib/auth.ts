@@ -5,7 +5,6 @@ import { z } from "zod";
 import { prisma_db } from "./prisma";
 import { authConfig } from "./auth.config";
 import Google from "next-auth/providers/google";
-import GitHub from "next-auth/providers/github";
 import Credentials from "next-auth/providers/credentials";
 
 // Extend session type
@@ -40,10 +39,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
     }),
     Credentials({
       credentials: {

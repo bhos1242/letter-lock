@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { FaGoogle, FaGithub } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuthSignIn = async (provider: "google" | "github") => {
+  const handleOAuthSignIn = async (provider: "google") => {
     setIsLoading(true);
     try {
       await signIn(provider, { callbackUrl: "/dashboard" });
@@ -169,19 +169,11 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => handleOAuthSignIn("github")}
-                  disabled={isLoading}
-                >
-                  <FaGithub className="mr-2 h-4 w-4" />
-                  Github
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
+                  className="w-full"
                   onClick={() => handleOAuthSignIn("google")}
                   disabled={isLoading}
                 >

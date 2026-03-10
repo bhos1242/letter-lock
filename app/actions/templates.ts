@@ -208,7 +208,7 @@ export async function getTemplates(status?: string) {
       ...(status ? { status: status as import("@/lib/generated/prisma/client").TemplateStatus } : {}),
     },
     include: {
-      currentVersion: { select: { versionNumber: true, variableSchemaJson: true } },
+      currentVersion: { select: { versionNumber: true, variableSchemaJson: true, content: true } },
       createdBy: { select: { name: true, email: true } },
       _count: { select: { documents: true } },
     },

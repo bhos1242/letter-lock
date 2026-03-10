@@ -29,23 +29,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createTemplate, updateTemplate } from "@/app/actions/templates";
 import { extractVariables, SUPPORTED_VARIABLES } from "@/lib/template-engine";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import Placeholder from "@tiptap/extension-placeholder";
-import {
-  Bold,
-  Italic,
-  UnderlineIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  List,
-  ListOrdered,
-  Heading2,
-} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import InputEditorV2 from "@/components/AppInputFields/InputEditorJS";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required").max(200),
@@ -56,6 +41,7 @@ const schema = z.object({
     "RECOMMENDATION_LETTER",
   ]),
   requiresApproval: z.boolean(),
+  content: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -83,30 +69,30 @@ export function TemplateForm({ templateId, defaultValues }: TemplateFormProps) {
       name: defaultValues?.name ?? "",
       type: (defaultValues?.type as FormValues["type"]) ?? "OFFER_LETTER",
       requiresApproval: defaultValues?.requiresApproval ?? false,
+      content: defaultValues?.content ?? "",
     },
   });
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({
-        placeholder:
-          'Write your template here. Use {{variable_name}} for dynamic fields, e.g. "Dear {{candidate_name}}, we are pleased to offer you the position of {{job_title}}."',
-      }),
-    ],
-    content: defaultValues?.content ?? "",
-    immediatelyRender: false,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      setDetectedVars(extractVariables(html));
-    },
+  // Watch content changes to update detected variables
+  const content = form.watch("content");
+  
+  // Update detected variables when content changes
+  // Using a timeout to debounce the extraction
+  useState(() => {
+    let timeoutId: NodeJS.Timeout;
+    const subscription = form.watch((value, { name }) => {
+      if (name === "content") {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          setDetectedVars(extractVariables(value.content || ""));
+        }, 500);
+      }
+    });
+    return () => subscription.unsubscribe();
   });
 
   function onSubmit(values: FormValues) {
-    const content = editor?.getHTML() ?? "";
-    if (!content || content === "<p></p>") {
+    if (!values.content || values.content === "<p></p>") {
       toast.error("Template content cannot be empty");
       return;
     }
@@ -116,7 +102,7 @@ export function TemplateForm({ templateId, defaultValues }: TemplateFormProps) {
       fd.set("name", values.name);
       fd.set("type", values.type);
       fd.set("requiresApproval", String(values.requiresApproval));
-      fd.set("content", content);
+      fd.set("content", values.content || "");
 
       const result = templateId
         ? await updateTemplate(templateId, fd)
@@ -209,100 +195,12 @@ export function TemplateForm({ templateId, defaultValues }: TemplateFormProps) {
             <CardTitle className="text-base">Template Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-1 border rounded-md p-1">
-              <Button
-                type="button"
-                variant={editor?.isActive("bold") ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleBold().run()}
-              >
-                <Bold className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive("italic") ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleItalic().run()}
-              >
-                <Italic className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive("underline") ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleUnderline().run()}
-              >
-                <UnderlineIcon className="h-3.5 w-3.5" />
-              </Button>
-              <Separator orientation="vertical" className="h-5 mx-1" />
-              <Button
-                type="button"
-                variant={editor?.isActive("heading", { level: 2 }) ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-              >
-                <Heading2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive("bulletList") ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              >
-                <List className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive("orderedList") ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              >
-                <ListOrdered className="h-3.5 w-3.5" />
-              </Button>
-              <Separator orientation="vertical" className="h-5 mx-1" />
-              <Button
-                type="button"
-                variant={editor?.isActive({ textAlign: "left" }) ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().setTextAlign("left").run()}
-              >
-                <AlignLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive({ textAlign: "center" }) ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().setTextAlign("center").run()}
-              >
-                <AlignCenter className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant={editor?.isActive({ textAlign: "right" }) ? "secondary" : "ghost"}
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => editor?.chain().focus().setTextAlign("right").run()}
-              >
-                <AlignRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="border rounded-md min-h-[320px] p-3 prose prose-sm max-w-none dark:prose-invert focus-within:ring-1 focus-within:ring-ring">
-              <EditorContent editor={editor} />
-            </div>
-
-            <FormDescription>
-              Use double curly braces for variables: <code className="text-xs bg-muted px-1 rounded">{"{{candidate_name}}"}</code>
-            </FormDescription>
+            <InputEditorV2
+              name="content"
+              label=""
+              placeholder={'Write your template here. Use {{variable_name}} for dynamic fields, e.g. "Dear {{candidate_name}}, we are pleased to offer you the position of {{job_title}}."'}
+              description={'Use double curly braces for variables: {{candidate_name}}'}
+            />
           </CardContent>
         </Card>
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { FaGoogle, FaGithub } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +94,7 @@ export default function SignupPage() {
     }
   };
 
-  const handleOAuthSignIn = async (provider: "google" | "github") => {
+  const handleOAuthSignIn = async (provider: "google") => {
     try {
       await signIn(provider, { callbackUrl: "/dashboard" });
     } catch (error) {
@@ -209,19 +209,11 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => handleOAuthSignIn("github")}
-                  disabled={signupMutation.isPending}
-                >
-                  <FaGithub className="mr-2 h-4 w-4" />
-                  Github
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
+                  className="w-full"
                   onClick={() => handleOAuthSignIn("google")}
                   disabled={signupMutation.isPending}
                 >

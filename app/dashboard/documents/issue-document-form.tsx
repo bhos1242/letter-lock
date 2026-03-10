@@ -31,7 +31,7 @@ type Template = {
   name: string;
   type: string;
   requiresApproval: boolean;
-  currentVersion: { variableSchemaJson: string } | null;
+  currentVersion: { variableSchemaJson: string; content?: string | null } | null;
 };
 
 const VAR_LABELS: Record<string, string> = {
@@ -117,8 +117,38 @@ export function IssueDocumentForm({ templates }: { templates: Template[] }) {
     });
   }
 
+  const combinedVars: Record<string, string> = {
+    ...variables,
+    candidate_name: recipientName,
+    recipient_email: recipientEmail,
+    job_title: roleTitle,
+  };
+
+  const renderPreview = (html: string | undefined | null, vars: Record<string, string>) => {
+    if (!html) return "<div class='flex items-center justify-center h-full text-muted-foreground'>Select a template to view the preview.</div>";
+    
+    let preview = html;
+    const dummyAutofill: Record<string, string> = {
+      company_name: "[Company Name]",
+      company_address: "[Company Address]",
+      company_website: "[Company Website]",
+      issue_date: new Date().toLocaleDateString(),
+    };
+    
+    preview = preview.replace(/{{([^}]+)}}/g, (match, varName) => {
+      const value = vars[varName] !== undefined && vars[varName] !== "" ? vars[varName] : dummyAutofill[varName];
+      if (value) {
+        return `<strong class="bg-primary/20 text-primary px-1 rounded shadow-sm">${value}</strong>`;
+      }
+      return `<strong class="bg-destructive/10 text-destructive px-1 rounded shadow-sm">${match}</strong>`;
+    });
+
+    return preview;
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start w-full">
+      <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Template</CardTitle>
@@ -246,5 +276,25 @@ export function IssueDocumentForm({ templates }: { templates: Template[] }) {
         </Button>
       </div>
     </form>
+
+    {/* Live Preview Pane */}
+    <div className="sticky top-6 hidden lg:block">
+      <Card className="h-[800px] flex flex-col overflow-hidden border-muted-foreground/20 shadow-md">
+        <CardHeader className="border-b bg-muted/30 py-4">
+          <CardTitle className="text-base flex items-center justify-between">
+            <span>Live Preview</span>
+            <Badge variant="secondary" className="font-normal text-xs">Preview Mode</Badge>
+          </CardTitle>
+          <CardDescription>Real-time preview of the document being generated</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 flex-1 overflow-y-auto bg-white dark:bg-zinc-950">
+          <div 
+             className="px-10 py-12 prose prose-sm max-w-none dark:prose-invert"
+             dangerouslySetInnerHTML={{ __html: renderPreview(selectedTemplate?.currentVersion?.content, combinedVars) }}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  </div>
   );
 }
